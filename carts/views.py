@@ -105,6 +105,8 @@ def remove_cart_item(request,product_id,cart_item_id):
     return redirect('cart')
 
 def cart(request,total=0,quantity = 0,cart_items=None):
+    tax=0
+    grand_total = 0
     try:
         cart = CartModel.objects.get(cart_id=_cart_id(request))
         cart_items = CartItem.objects.filter(cart=cart,is_active = True)
