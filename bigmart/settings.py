@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'accounts',
     'store',
     'carts',
+    'orders',
 ]
 
 MIDDLEWARE = [
@@ -136,7 +137,7 @@ MESSAGE_TAGS = {
     messages.ERROR: 'danger',
 }
 
-
+PAYPAL_ENVIRONMENT = 'sandbox'
 # SMTP configuration
 
 EMAIL_HOST = 'smtp.gmail.com'
