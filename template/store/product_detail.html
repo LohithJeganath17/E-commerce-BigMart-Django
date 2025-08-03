@@ -10,15 +10,25 @@
 
 <!-- ============================ COMPONENT 1 ================================= -->
 <div class="card">
-	<div class="row no-gutters">
-		<aside class="col-md-6">
-<article class="gallery-wrap"> 
-	<div class="img-big-wrap">
-	   <a href="#"><img src="{{single_product.images.url}}"></a>
+<div class="row no-gutters">
+<aside class="col-md-6">
+<article class="gallery-wrap">
+	<div class="img-big-wrap mainImage">
+		<center><img src="{{ single_product.images.url }}"></center>
 	</div> <!-- img-big-wrap.// -->
 	
-</article> <!-- gallery-wrap .end// -->
+ 	</article> <!-- gallery-wrap .end// -->
+ 		<ul class="thumb">
+			<li>
+			<a href="{{ single_product.images.url }}" target="mainImage"><img src="{{ single_product.images.url }}" alt="Product Image"></a>
+			{% for i in product_gallery %}
+				<a href="{{i.image.url}}" target="mainImage"><img src="{{i.image.url}}" alt="Product Image"></a>
+			{% endfor %}
+			</li>
+		</ul>
+
 		</aside>
+
 		<main class="col-md-6 border-left">
 			<form action="{% url 'add_cart' single_product.id %}" method="POST">
 				{% csrf_token %}
@@ -113,12 +123,12 @@
 		Review:
 		<textarea name="review" rows="4" class="form-control"></textarea>
 		<br>
-		{% if user.is_authenticated %}
+<!--		{% if user.is_authenticated %}
 			<input type="submit" value="Submit Review" class="btn btn-primary">
 		{% else %}
 			<p>You must be logged in to post a review. <span><a href="{% url 'login' %}">Login now</a></span></p>
-		{% endif %}
-<!--	{% if user.is_authenticated %}
+		{% endif %} -->
+		{% if user.is_authenticated %}
 			{% if orderproduct %}
 				<input type="submit" value="Submit Review" class="btn btn-primary">
 			{% else %}
@@ -126,7 +136,7 @@
 			{%endif%}
 		{% else %}
 			<p>You must be logged in to post a review. <span><a href="{% url 'login' %}">Login now</a></span></p>
-		{% endif %} -->
+		{% endif %} 
 	</div>
 	{% include 'includes/alerts.html' %}
 	</form>

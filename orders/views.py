@@ -11,68 +11,117 @@ from django.template.loader import render_to_string
 # Create your views here.
 
 
+
+
 def payments(request):
-    body = json.loads(request.body)
-    order = OrderModel.objects.get(user=request.user, is_ordered=False, order_number=body['orderID'])
 
-    # Store transaction details inside Payment model
-    payment = Payment(
-        user = request.user,
-        payment_id = body['transID'],
-        payment_method = body['payment_method'],
-        amount_paid = order.order_total,
-        status = body['status'],
-    )
-    payment.save()
+    #print("Payments view hit!")
 
-    order.payment = payment
-    order.is_ordered = True
-    order.save()
+    try:
+        if request.method != "POST":
+            #print("❌ Not a POST request")
+            return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
-    # Moving cart items to Order Product table in admin
-    cart_items = CartItem.objects.filter(user=request.user)
+        # Try to read body
+        try:
+            body = json.loads(request.body)
+            #print("📦 Payload received:", body)
+        except Exception as e:
+            #print("❌ Failed to parse body:", e)
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-    for item in cart_items:
-        orderproduct = OrderProduct()
-        orderproduct.order_id = order.id
-        orderproduct.payment = payment
-        orderproduct.user_id = request.user.id
-        orderproduct.product_id = item.product_id
-        orderproduct.quantity = item.quantity
-        orderproduct.product_price = item.product.price
-        orderproduct.ordered = True
-        orderproduct.save()
+        order_id = body.get("orderID")
+        trans_id = body.get("transID")
+        payment_method = body.get("payment_method")
+        status = body.get("status")
 
-
-        cart_item = CartItem.objects.get(id=item.id)
-        product_variation = cart_item.variations.all()
-        orderproduct = OrderProduct.objects.get(id=orderproduct.id)
-        orderproduct.variations.set(product_variation)
-        orderproduct.save()
-
-        # Reduce the quantity of the sold products
-        product = ProductModel.objects.get(id=item.product_id)
-        product.stock -= item.quantity
-        product.save()
-
-    # Clear cart
-    CartItem.objects.filter(user=request.user).delete()
-
-    # Send order recieved email to customer
-    mail_subject = 'Thank you for your order!'
-    message = render_to_string('orders/order_recieved_email.html', {
-        'user': request.user,
-        'order': order,
-    })
-    to_email = request.user.email
-    send_email = EmailMessage(mail_subject, message, to=[to_email])
-    send_email.send()
+        if not all([order_id, trans_id, payment_method, status]):
+            #print("❌ Missing data in payload")
+            return JsonResponse({'error': 'Missing payment details'}, status=400)
+        
     
-    data = {
-        'order_number': order.order_number,
-        'transID': payment.payment_id,
-    }
-    return JsonResponse(data)
+
+    #body = json.loads(request.body)
+        try:
+            order = OrderModel.objects.get( is_ordered=False, order_number=body['orderID'])
+            #print("✅ Order fetched:", order)
+        except OrderModel.DoesNotExist:
+                #print("❌ Order not found:", order_id)
+                return JsonResponse({'error': 'Order not found'}, status=404)
+
+
+        # Store transaction details inside Payment model
+        payment = Payment(
+            user = order.user,
+            payment_id = body['transID'],
+            payment_method = body['payment_method'],
+            amount_paid = order.order_total,
+            status = body['status'],
+        )
+        payment.save()
+
+        order.payment = payment
+        order.is_ordered = True
+        order.save()
+
+        # Moving cart items to Order Product table in admin
+        cart_items = CartItem.objects.filter(user=request.user)
+
+        for item in cart_items:
+            orderproduct = OrderProduct()
+            orderproduct.order_id = order.id
+            orderproduct.payment = payment
+            orderproduct.user_id = request.user.id
+            orderproduct.product_id = item.product_id
+            orderproduct.quantity = item.quantity
+            orderproduct.product_price = item.product.price
+            orderproduct.ordered = True
+            orderproduct.save()
+
+
+            cart_item = CartItem.objects.get(id=item.id)
+            product_variation = cart_item.variations.all()
+            orderproduct = OrderProduct.objects.get(id=orderproduct.id)
+            orderproduct.variation.set(product_variation)
+            orderproduct.save()
+
+            # Reduce the quantity of the sold products
+            product = ProductModel.objects.get(id=item.product_id)
+            product.stock -= item.quantity
+            product.save()
+
+        # Clear cart
+        CartItem.objects.filter(user=request.user).delete()
+
+        # Send order recieved email to customer
+        mail_subject = 'Thank you for your order!'
+
+        try:
+            ##print("📤 Preparing to send email...")
+            ##print("👤 order.user:", order.user)
+            ##print("📧 order.email:", order.email)
+            message = render_to_string('orders/orders_recieved_email.html', {
+                    'user': order.user,
+                    'order': order,
+                })
+            to_email = order.email
+            send_email = EmailMessage(mail_subject, message, to=[to_email])
+            send_email.send()
+            #print("✅ Email sent successfully!")
+
+        except Exception as e:
+            pass
+            #print("💥 Email sending failed:", str(e))
+        
+        data = {
+            'order_number': order.order_number,
+            'transID': payment.payment_id,
+        }
+        return JsonResponse(data)
+
+    except Exception as e:
+        #print("💥 UNEXPECTED ERROR:", str(e))
+        return JsonResponse({'error': 'Failed to save payment', 'details': str(e)}, status=500)
 
 def order_complete(request):
 
@@ -95,6 +144,7 @@ def order_complete(request):
             'ordered_products':ordered_products,
             'order_number': order.order_number,
             'trans_ID': payment.payment_id,
+            'payment': payment,
             'subtotal' : subtotal
         }
         return render(request,'orders/order_complete.html',context)
@@ -160,7 +210,7 @@ def placeorder(request, total=0, quantity=0):
                 'tax' : tax,
                 'grand_total' : grand_total,
             }
-
+            #print("Order placed")
             return render(request,'orders/payments.html',context)
     
     else:

@@ -1,6 +1,6 @@
 {% autoescape off %}
 
-Hi {{user.first_name}},
+Hi {% if user %}{{ user.first_name }}{% else %}Customer{% endif %},
 
 Your Order has been recieved
 

@@ -107,7 +107,7 @@
 			
 
             <div id="paypal-button-container"></div>
-
+            
             <script>
                 function getCookie(name) {
                 let cookieValue = null;
@@ -124,10 +124,12 @@
                 }
                 return cookieValue;
             }
-                var amount = '{{ grand_total }}'
-            	var url = "{% url 'payments' %}"
+            
+                var amount = '{{grand_total}}'
+            	  var url = "{% url 'payments' %}"
                 var csrftoken = getCookie('csrftoken');
-                var orderID = "{{order.order_number}}"
+                const internalOrderID = "{{ order.order_number }}";  //new line added
+                //var orderID = "{{order.order_number}}"
                 var payment_method = 'PayPal'
                 var redirect_url = "{% url 'order_complete' %}"
 
@@ -143,21 +145,41 @@
                 },
 
                 createOrder: function(data, actions) {
+                  console.log("🛒 createOrder running...");
                     return actions.order.create({
                         purchase_units: [{
                             amount: {
-                                value: amount,
-                            }
+                                value : amount,
+                            },
+                            custom_id: internalOrderID //new line added
                         }]
                     });
                 },
 
                 // Finalize the transaction
                     onApprove: function(data, actions) {
+                      console.log(" onApprove TRIGGERED");
                         return actions.order.capture().then(function(details) {
-                            // Show a success message to the buyer
-                            console.log(details);
-                        sendData();
+                        // Show a success message to the buyer
+                        console.log('Payment Captured: ' ,details);
+                        
+                        // Safely extract orderID from `data`
+                        //orderID = data.orderID;
+                        const transID = details.id;
+                        const status = details.status;
+                        const payment_method = "PayPal"; // Or pass dynamically if needed
+                        const order_number = details.purchase_units[0].custom_id; //orderID
+                        
+                        // Log what's being sent for better debugging
+                        console.log("Sending to backend:", {
+                            //orderID: orderID,
+                            orderID: order_number,
+                            transID: transID,
+                            payment_method: payment_method,
+                            status: details.status
+                        });
+                        console.log("POSTing to URL:", url);
+                        console.log("Fetch starting...");
                         function sendData(){
                             fetch(url, {
                                 method : "POST",
@@ -166,21 +188,31 @@
                                     "X-CSRFToken": csrftoken,
                                 },
                                 body: JSON.stringify({
-                                    orderID: orderID,
+                                    orderID: order_number,
                                     transID: details.id,
                                     payment_method: payment_method,
                                     status: details.status,
                                 }),
 					})
-                .then((response) => response.json())
-				.then((data) => {
-                    window.location.href = redirect_url + '?order_number='+data.order_number+'&payment_id='+data.transID;
-                });
+                .then((response) => { if (!response.ok) {
+                    throw new Error("Failed to save payment.");
                 }
+                return response.json();
+                        })
+				        .then((data) => { console.log("Redirecting with:", data);
+                    window.location.href = redirect_url + '?order_number='+data.order_number+'&payment_id='+data.transID;
+                      })
+                .catch((error) => {
+                console.error("Error during payment handling:", error);
+                alert("Payment captured, but order could not be completed. Please contact support.");
+                });
+              }
+              sendData();
                     });
                     }
 
-                }).render('#paypal-button-container');
+                }) .render('#paypal-button-container'); console.log("🧪 PayPal Buttons render triggered");
+                
             </script>
 			
 		</div> <!-- card-body.// -->

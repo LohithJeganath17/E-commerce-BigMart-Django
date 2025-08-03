@@ -36,8 +36,8 @@ class OrderModel(models.Model):
     city = models.CharField(max_length=100)
     country = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
-    order_total = models.FloatField(max_length=50)
-    tax = models.FloatField
+    order_total = models.FloatField()
+    tax = models.FloatField(default=0.0)
     status = models.CharField(max_length=20,choices=STATUS,default='NEW')
     ip = models.CharField(blank = True,max_length=20)
     order_note = models.TextField(max_length=200)
@@ -62,7 +62,7 @@ class OrderProduct(models.Model):
     product = models.ForeignKey(ProductModel,on_delete=models.CASCADE)
     variation = models.ManyToManyField(VariationModel,blank=True)
     quantity = models.IntegerField()
-    product_price = models.FloatField
+    product_price = models.FloatField(default=0.0)
     is_ordered = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
